@@ -1,65 +1,14 @@
 // ATS Classic live preview — renders the canonical CvDocument exactly as the
 // PDF and DOCX renderers do: A4 proportions, single column, conservative
 // typography, no decorative icons, visibility rules applied.
-import type { CvDocument, SectionKey } from './document'
-import { formatDateRange, sectionTitles } from './document'
-
-export function contactLine(doc: CvDocument): string[] {
-  const v = doc.visibility
-  const c = doc.contact
-  const parts: string[] = []
-  if (v.address_mode === 'full') {
-    const address = [c.address_line, c.city, c.region, c.postal_code, c.country]
-      .filter(Boolean)
-      .join(', ')
-    if (address) parts.push(address)
-  } else if (v.address_mode === 'city_only') {
-    const address = [c.city, c.country].filter(Boolean).join(', ')
-    if (address) parts.push(address)
-  }
-  if (v.show_email && c.email) parts.push(c.email)
-  if (v.show_phone && c.phone) parts.push(c.phone)
-  return parts
-}
-
-export function detailLine(doc: CvDocument): string[] {
-  const v = doc.visibility
-  const c = doc.contact
-  const parts: string[] = []
-  if (v.show_date_of_birth && c.date_of_birth)
-    parts.push(`Date of birth: ${c.date_of_birth}`)
-  if (v.show_gender && c.gender) parts.push(`Gender: ${c.gender}`)
-  if (v.show_nationality && c.nationality)
-    parts.push(`Nationality: ${c.nationality}`)
-  if (v.show_drivers_licence && c.drivers_licence)
-    parts.push(`Driver's licence: ${c.drivers_licence}`)
-  return parts
-}
-
-/** Section keys that actually render, in configured order. */
-export function visibleSections(doc: CvDocument): SectionKey[] {
-  return doc.sectionOrder.filter((key) => {
-    if (!doc.sectionVisibility[key]) return false
-    switch (key) {
-      case 'summary':
-        return doc.summary.trim().length > 0
-      case 'skills':
-        return doc.skills.length > 0
-      case 'systems':
-        return doc.systems.length > 0
-      case 'experience':
-        return doc.experiences.length > 0
-      case 'education':
-        return doc.education.length > 0
-      case 'certifications':
-        return doc.certifications.length > 0
-      case 'references':
-        return doc.visibility.references_mode !== 'hidden'
-      default:
-        return false
-    }
-  })
-}
+import type { CvDocument } from './document'
+import {
+  contactLine,
+  detailLine,
+  formatDateRange,
+  sectionTitles,
+  visibleSections,
+} from './document'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (

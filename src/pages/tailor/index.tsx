@@ -1,6 +1,13 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowDown, ArrowLeft, ArrowUp, Sparkles } from 'lucide-react'
+import { toast } from 'sonner'
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowUp,
+  FileDown,
+  Sparkles,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
@@ -21,6 +28,8 @@ import {
 import { AtsClassicPreview } from '@/features/tailor/ats-preview'
 import { SuggestionCard } from '@/features/tailor/suggestion-card'
 import { AssistantPanel } from '@/features/tailor/assistant-panel'
+import { exportCv } from '@/features/tailor/export'
+import { useUserId } from '@/features/profile/hooks'
 import { cn } from '@/lib/utils'
 
 type MobileTab = 'sections' | 'preview' | 'review' | 'assistant'
@@ -94,6 +103,7 @@ function SectionsPanel({
 
 export function TailorPage() {
   const { id = '', versionId = '' } = useParams()
+  const userId = useUserId()
   const { data: app } = useApplication(id)
   const { data: cv, isLoading, error } = useTailoredCv(versionId)
   const { data: suggestions = [] } = useSuggestions(versionId)
@@ -102,6 +112,7 @@ export function TailorPage() {
   const resolve = useResolveSuggestion(versionId)
   const [mobileTab, setMobileTab] = useState<MobileTab>('preview')
   const [rightTab, setRightTab] = useState<'review' | 'assistant'>('review')
+  const [exporting, setExporting] = useState<'pdf' | 'docx' | null>(null)
 
   const document = useMemo(() => {
     if (!cv) return null
@@ -199,11 +210,48 @@ export function TailorPage() {
             </Badge>
           </h1>
         </div>
-        {saveDocument.isPending && (
-          <p className="text-muted-foreground text-xs" role="status">
-            Saving…
-          </p>
-        )}
+        <div className="flex items-center gap-2">
+          {saveDocument.isPending && (
+            <p className="text-muted-foreground text-xs" role="status">
+              Saving…
+            </p>
+          )}
+          {(['pdf', 'docx'] as const).map((format) => (
+            <Button
+              key={format}
+              variant="outline"
+              size="sm"
+              disabled={exporting !== null || !app}
+              onClick={async () => {
+                if (!app) return
+                setExporting(format)
+                try {
+                  const fileName = await exportCv({
+                    userId,
+                    tailoredCvId: versionId,
+                    jobApplicationId: id,
+                    document,
+                    jobTitle: app.job_title,
+                    company: app.company,
+                    format,
+                  })
+                  toast.success(`Exported ${fileName}`)
+                } catch (err) {
+                  toast.error(
+                    err instanceof Error ? err.message : 'Export failed.',
+                  )
+                } finally {
+                  setExporting(null)
+                }
+              }}
+            >
+              <FileDown aria-hidden="true" />
+              {exporting === format
+                ? 'Exporting…'
+                : `Export ${format.toUpperCase()}`}
+            </Button>
+          ))}
+        </div>
       </div>
 
       {/* Mobile tab bar */}
