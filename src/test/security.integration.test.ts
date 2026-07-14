@@ -31,7 +31,7 @@ describeLive('RLS, storage isolation and version immutability (live)', () => {
   let u2Client: SupabaseClient
   let u1: QaUser
   let u2: QaUser
-  const cleanup: Array<() => Promise<unknown>> = []
+  const cleanup: Array<() => PromiseLike<unknown>> = []
 
   beforeAll(async () => {
     const users = readFileSync('private/qa-users.txt', 'utf8')
