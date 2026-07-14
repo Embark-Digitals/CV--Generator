@@ -28,6 +28,7 @@ import {
 } from '@/features/applications/hooks'
 import { extractRequirements } from '@/features/applications/api'
 import { AlignmentSection } from '@/features/applications/alignment-section'
+import { TailoredCvsSection } from '@/features/tailor/tailored-cvs-section'
 import { useQueryClient } from '@tanstack/react-query'
 import { applicationKeys } from '@/features/applications/hooks'
 import type {
@@ -446,14 +447,7 @@ export function ApplicationDetailPage() {
           hasRequirements={requirements.length > 0}
         />
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Tailored CVs</CardTitle>
-            <CardDescription>
-              Tailored CV versions arrive in the next build phases.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+        <TailoredCvsSection applicationId={id} jobTitle={app.job_title} />
 
         <Card>
           <CardHeader>
