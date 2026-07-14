@@ -27,6 +27,7 @@ import {
   useUpdateApplication,
 } from '@/features/applications/hooks'
 import { extractRequirements } from '@/features/applications/api'
+import { AlignmentSection } from '@/features/applications/alignment-section'
 import { useQueryClient } from '@tanstack/react-query'
 import { applicationKeys } from '@/features/applications/hooks'
 import type {
@@ -440,12 +441,16 @@ export function ApplicationDetailPage() {
           </CardContent>
         </Card>
 
+        <AlignmentSection
+          applicationId={id}
+          hasRequirements={requirements.length > 0}
+        />
+
         <Card>
           <CardHeader>
             <CardTitle>Tailored CVs</CardTitle>
             <CardDescription>
-              Job Alignment analysis and tailored CV versions arrive in the
-              next build phases.
+              Tailored CV versions arrive in the next build phases.
             </CardDescription>
           </CardHeader>
         </Card>
