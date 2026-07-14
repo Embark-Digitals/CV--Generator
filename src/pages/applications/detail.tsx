@@ -29,6 +29,7 @@ import {
 import { extractRequirements } from '@/features/applications/api'
 import { AlignmentSection } from '@/features/applications/alignment-section'
 import { TailoredCvsSection } from '@/features/tailor/tailored-cvs-section'
+import { SubmitVersionDialog } from '@/features/versions/submit-dialog'
 import { useQueryClient } from '@tanstack/react-query'
 import { applicationKeys } from '@/features/applications/hooks'
 import type {
@@ -209,6 +210,7 @@ export function ApplicationDetailPage() {
   const [newNote, setNewNote] = useState('')
   const [extracting, setExtracting] = useState(false)
   const [showAdvert, setShowAdvert] = useState(false)
+  const [submitDialogOpen, setSubmitDialogOpen] = useState(false)
 
   if (isLoading) {
     return (
@@ -300,14 +302,18 @@ export function ApplicationDetailPage() {
             id="status-select"
             className="w-40"
             value={app.status}
-            onChange={(e) =>
+            onChange={(e) => {
+              const next = e.target.value as ApplicationStatus
               updateApp.mutate({
-                status: e.target.value as ApplicationStatus,
-                ...(e.target.value === 'applied' && !app.applied_at
+                status: next,
+                ...(next === 'applied' && !app.applied_at
                   ? { applied_at: new Date().toISOString() }
                   : {}),
               })
-            }
+              if (next === 'applied' && !app.submitted_cv_version_id) {
+                setSubmitDialogOpen(true)
+              }
+            }}
           >
             {statusOrder.map((s) => (
               <option key={s} value={s}>
@@ -448,6 +454,12 @@ export function ApplicationDetailPage() {
         />
 
         <TailoredCvsSection applicationId={id} jobTitle={app.job_title} />
+
+        <SubmitVersionDialog
+          applicationId={id}
+          open={submitDialogOpen}
+          onClose={() => setSubmitDialogOpen(false)}
+        />
 
         <Card>
           <CardHeader>

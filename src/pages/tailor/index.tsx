@@ -29,6 +29,7 @@ import { AtsClassicPreview } from '@/features/tailor/ats-preview'
 import { SuggestionCard } from '@/features/tailor/suggestion-card'
 import { AssistantPanel } from '@/features/tailor/assistant-panel'
 import { exportCv } from '@/features/tailor/export'
+import { VersionsPanel } from '@/features/versions/versions-panel'
 import { useUserId } from '@/features/profile/hooks'
 import { cn } from '@/lib/utils'
 
@@ -290,6 +291,7 @@ export function TailorPage() {
             onChange={onDocumentChange}
             disabled={!editable}
           />
+          <VersionsPanel cv={cv} document={document} />
         </aside>
 
         <div
