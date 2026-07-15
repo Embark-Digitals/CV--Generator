@@ -1,7 +1,7 @@
 # Initial User Setup
 
 CV Machine is a private application. Public signup is disabled. The initial
-account (Paulina) is created administratively.
+user's account is created administratively.
 
 ## Creating the initial account
 

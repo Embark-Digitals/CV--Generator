@@ -11,6 +11,9 @@ just by prompting.
 ## Status
 
 Private single-user MVP. Not a public SaaS, not a job-application bot.
+The source code is public by owner decision; the application, its data and
+all credentials remain private — no secrets or personal data ever enter this
+repository.
 
 ## Architecture
 

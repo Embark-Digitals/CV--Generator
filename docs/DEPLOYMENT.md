@@ -16,6 +16,10 @@
   `VITE_SUPABASE_ANON_KEY` (anon key is public-by-design; RLS enforces
   security)
 - Deploy: `vercel deploy --prod --yes`
+- The Vercel project is **not Git-connected**: production deploys are
+  CLI-driven from the local `build/mvp` working tree, and GitHub pushes do
+  not trigger builds or previews. Keep it this way unless the owner decides
+  to move to Git-based deploys from `main`.
 
 ## Database
 

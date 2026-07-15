@@ -1,6 +1,6 @@
 # Project Completion Report — CV Machine MVP
 
-Date: 2026-07-14 · Branch: `build/mvp` · Owner: Embark Digitals
+Date: 2026-07-16 · Branch: `build/mvp` · Owner: Embark Digitals
 
 ## What was built
 
@@ -28,8 +28,14 @@ analytics, template marketplace.
   allow-list, 3 private storage buckets with user-scoped paths, 5 deployed
   Edge Functions, signup disabled.
 - Vercel project `cv-machine` → https://cv-machine.vercel.app (verified 200).
-- Local git repo, 10 commits across phases 0–8; `main` holds the baseline,
-  work on `build/mvp`.
+  The Vercel project is not Git-connected; deployments are CLI-driven, so
+  GitHub pushes never trigger builds.
+- GitHub: `Embark-Digitals/CV--Generator` — `main` (Phase 0 baseline) and
+  `build/mvp` (all 10 commits) pushed with upstream tracking on 2026-07-16
+  after a full history privacy/secret scan (clean). The repository is
+  **public by owner decision**; the anon key in the frontend bundle is
+  public-by-design and all security is enforced by RLS. Branch protection
+  requires org-admin access (optional follow-up).
 
 ## Verification
 
@@ -37,20 +43,28 @@ analytics, template marketplace.
   real PDF/DOCX generation, live RLS/storage/version-immutability against
   the production Supabase project, and an API-level end-to-end critical
   workflow.
+- Lint (oxlint) passing — six benign fast-refresh warnings, zero errors.
 - Production build (`tsc -b && vite build`) passing; heavy renderers
-  code-split and lazy-loaded.
+  code-split and lazy-loaded; build output scanned — no secrets, QA
+  identities or personal data.
+- Edge Function health (2026-07-16): all five functions reject
+  unauthenticated calls (401); authenticated calls without the OpenAI key
+  fail cleanly (502 + friendly JSON, no stack traces) and write `ai_runs`
+  usage records.
 
 ## Outstanding external actions (owner)
 
-1. **GitHub access** — the authenticated account `Ndumiso-Y` has read-only
-   access to `Embark-Digitals/CV--Generator`. Grant it write/admin (or add
-   it to the org), then push `main` and `build/mvp`. The repo is currently
-   **public** and must be made private (needs admin).
-2. **OpenAI key** — `supabase secrets set OPENAI_API_KEY --project-ref
-   uonqfegzzxjbxqxfpqxe` (AI features return friendly errors until set).
-3. **Paulina's account** — create via dashboard (auto-confirm) per
-   docs/INITIAL_USER_SETUP.md, then import her CV through the app.
-4. Later: custom SMTP for password recovery; optional custom domain.
+1. **OpenAI key** — `supabase secrets set OPENAI_API_KEY --project-ref
+   uonqfegzzxjbxqxfpqxe` (enter the key only in the secure CLI prompt or the
+   dashboard; AI features return friendly errors until set).
+2. **Initial user account** — create via the Supabase dashboard
+   (auto-confirm) per docs/INITIAL_USER_SETUP.md, then run the first real
+   CV import through the application.
+3. **First-use validation session** — with 1 and 2 done: real CV import and
+   verification, requirement extraction, Job Alignment, suggestion review,
+   manual Truth Lock probes, and PDF/DOCX exports opened and checked.
+4. Later: custom SMTP for password recovery; optional custom domain;
+   optional branch protection on `main` (org-admin).
 
 ## Known limitations
 
@@ -63,6 +77,8 @@ analytics, template marketplace.
 
 ## Verdict
 
-Production-ready for its intended private single-user use **once the three
-external actions above are completed** — all code paths that do not depend
-on the OpenAI key are implemented, deployed and verified.
+Code, database, security model, exports and deployment are implemented,
+pushed and verified. Production-ready for its intended private single-user
+use **once the OpenAI key is set, the initial account is created and the
+first-use validation session passes** — AI-dependent paths must not be
+declared complete before that session.

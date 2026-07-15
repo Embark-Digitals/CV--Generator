@@ -1,6 +1,8 @@
 # Git Workflow
 
-Canonical repository: `Embark-Digitals/CV--Generator` (private).
+Canonical repository: `Embark-Digitals/CV--Generator` (**public** by owner
+decision — therefore secrets and personal data are banned from history
+absolutely; see [SECURITY.md](SECURITY.md)).
 
 ## Branches
 
