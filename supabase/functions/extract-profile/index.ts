@@ -4,10 +4,12 @@
 import { z } from 'npm:zod@3'
 import {
   HttpError,
+  hasPendingRun,
   json,
   logAiRun,
   serveWithContext,
   sha256Hex,
+  updateAiRun,
 } from '../_shared/context.ts'
 import {
   complete,
@@ -16,6 +18,23 @@ import {
   ProviderError,
   untrustedBlock,
 } from '../_shared/provider.ts'
+import type { ProviderErrorCode } from '../_shared/openai-response.ts'
+
+// Map an internal failure code to (HTTP status, stable category). The client
+// turns the category into safe user-facing copy; we never send provider text.
+function failureResponse(code: ProviderErrorCode | 'in_progress') {
+  const table: Record<string, { status: number; category: string }> = {
+    timeout: { status: 504, category: 'timeout' },
+    rate_limited: { status: 429, category: 'rate_limited' },
+    quota: { status: 402, category: 'quota' },
+    truncated: { status: 502, category: 'truncated' },
+    invalid_response: { status: 502, category: 'invalid_response' },
+    in_progress: { status: 409, category: 'in_progress' },
+    error: { status: 502, category: 'unavailable' },
+  }
+  const { status, category } = table[code] ?? table.error
+  return json({ error: 'Profile extraction failed', category }, status)
+}
 
 const requestSchema = z.object({ document_id: z.string().uuid() })
 
@@ -183,6 +202,23 @@ serveWithContext(async (req, ctx) => {
   const model = modelFor('extract')
   const inputHash = await sha256Hex(doc.extracted_text)
 
+  // Reject a duplicate submission (e.g. impatient retry) for the same document
+  // while an extraction is already running, before spending another AI call.
+  if (await hasPendingRun(ctx, 'profile_extraction', inputHash)) {
+    return failureResponse('in_progress')
+  }
+
+  // Record a pending run so concurrent duplicates are detected and the run has
+  // a lifecycle we can finalise.
+  const runId = await logAiRun(ctx, {
+    kind: 'profile_extraction',
+    model,
+    status: 'pending',
+    inputHash,
+  })
+  const finalise = (entry: Parameters<typeof updateAiRun>[2]) =>
+    runId ? updateAiRun(ctx, runId, entry) : Promise.resolve()
+
   try {
     const result = await complete({
       model,
@@ -190,27 +226,25 @@ serveWithContext(async (req, ctx) => {
       user: untrustedBlock('CV TEXT', doc.extracted_text),
       schemaName: 'candidate_profile',
       schema: responseJsonSchema,
+      // Reasoning model: leave generous headroom so reasoning + a large
+      // structured profile never truncates (only used tokens are billed).
+      maxOutputTokens: 16_000,
       timeoutMs: 90_000,
     })
-    await logAiRun(ctx, {
-      kind: 'profile_extraction',
-      model,
+    await finalise({
       status: 'success',
-      inputHash,
       promptTokens: result.promptTokens,
       completionTokens: result.completionTokens,
       durationMs: result.durationMs,
     })
     return json({ candidate: result.json })
   } catch (err) {
-    const code = err instanceof ProviderError ? err.code : 'error'
-    await logAiRun(ctx, {
-      kind: 'profile_extraction',
-      model,
-      status: code === 'error' ? 'error' : code,
-      inputHash,
-      errorCode: code,
-    })
-    throw new HttpError(502, 'Profile extraction failed')
+    const code: ProviderErrorCode =
+      err instanceof ProviderError ? err.code : 'error'
+    // Enum-safe status; the precise category lives in error_code.
+    const enumStatus =
+      code === 'timeout' || code === 'rate_limited' ? code : 'error'
+    await finalise({ status: enumStatus, errorCode: code })
+    return failureResponse(code)
   }
 })

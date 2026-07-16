@@ -1,5 +1,9 @@
 // OpenAI provider adapter — the single place that talks to the OpenAI API.
 // The API key exists only as a Supabase secret and never leaves this module.
+import {
+  classifyOpenAiResponse,
+  type ProviderErrorCode,
+} from './openai-response.ts'
 
 export interface CompletionRequest {
   model: string
@@ -19,9 +23,15 @@ export interface CompletionResult {
   durationMs: number
 }
 
+// gpt-5-mini is a reasoning model: reasoning tokens are drawn from the same
+// max_completion_tokens budget as the visible output, so a low cap silently
+// truncates a large structured extraction. Give generous headroom by default;
+// callers only ever pay for tokens actually used.
+const DEFAULT_MAX_OUTPUT_TOKENS = 8192
+
 export class ProviderError extends Error {
   constructor(
-    public code: 'timeout' | 'rate_limited' | 'error',
+    public code: ProviderErrorCode,
     message: string,
   ) {
     super(message)
@@ -76,7 +86,8 @@ export async function complete(
               { role: 'system', content: request.system },
               { role: 'user', content: request.user },
             ],
-            max_completion_tokens: request.maxOutputTokens ?? 4096,
+            max_completion_tokens:
+              request.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
             response_format: {
               type: 'json_schema',
               json_schema: {
@@ -89,42 +100,77 @@ export async function complete(
         },
       )
 
-      if (response.status === 429) {
-        lastError = new ProviderError('rate_limited', 'OpenAI rate limit hit')
-        await new Promise((r) => setTimeout(r, 1500 * attempt))
-        continue
-      }
-      if (!response.ok) {
-        // Do not leak provider response bodies (may echo prompt content).
-        lastError = new ProviderError(
-          'error',
-          `OpenAI request failed with status ${response.status}`,
-        )
-        if (response.status >= 500) continue
-        throw lastError
+      // Read only the safe error.code from a non-OK body (never echo the body,
+      // which may contain prompt content).
+      let bodyErrorCode: string | null = null
+      let payload: Record<string, unknown> | null = null
+      if (response.ok) {
+        payload = await response.json().catch(() => null)
+      } else {
+        const errBody = await response.json().catch(() => null)
+        bodyErrorCode =
+          (errBody?.error?.code as string | undefined) ?? null
       }
 
-      const payload = await response.json()
-      const content = payload.choices?.[0]?.message?.content
-      if (typeof content !== 'string') {
-        throw new ProviderError('error', 'OpenAI returned no content')
+      const choice =
+        (payload?.choices as Array<Record<string, unknown>> | undefined)?.[0]
+      const message = choice?.message as { content?: unknown } | undefined
+      const decision = classifyOpenAiResponse({
+        httpStatus: response.status,
+        ok: response.ok,
+        finishReason: choice?.finish_reason as string | undefined,
+        content: message?.content,
+        bodyErrorCode,
+      })
+
+      if (decision.outcome === 'fatal') {
+        // Deterministic failure (truncated / quota / 4xx). Do not retry.
+        throw new ProviderError(
+          decision.code ?? 'error',
+          `OpenAI response ${decision.code} (status ${response.status})`,
+        )
       }
+      if (decision.outcome === 'retryable') {
+        lastError = new ProviderError(
+          decision.code ?? 'error',
+          `OpenAI ${decision.code} (status ${response.status})`,
+        )
+        if (decision.code === 'rate_limited') {
+          await new Promise((r) => setTimeout(r, 1500 * attempt))
+        }
+        continue
+      }
+
+      // success — parse the structured JSON (caller validates with Zod).
+      const content = message?.content as string
       let parsed: unknown
       try {
         parsed = JSON.parse(content)
       } catch {
-        lastError = new ProviderError('error', 'OpenAI returned invalid JSON')
+        // Malformed JSON despite a clean finish is worth one more attempt.
+        lastError = new ProviderError(
+          'invalid_response',
+          'OpenAI returned invalid JSON',
+        )
         continue
       }
       return {
         json: parsed,
-        promptTokens: payload.usage?.prompt_tokens ?? 0,
-        completionTokens: payload.usage?.completion_tokens ?? 0,
+        promptTokens:
+          ((payload?.usage as { prompt_tokens?: number })?.prompt_tokens) ?? 0,
+        completionTokens:
+          ((payload?.usage as { completion_tokens?: number })
+            ?.completion_tokens) ?? 0,
         durationMs: Date.now() - started,
       }
     } catch (err) {
       if (err instanceof ProviderError) {
-        if (attempt === MAX_ATTEMPTS) throw err
+        // Fatal codes must never be retried, even if attempts remain.
+        const fatal =
+          err.code === 'truncated' ||
+          err.code === 'quota' ||
+          err.code === 'error'
+        if (fatal || attempt === MAX_ATTEMPTS) throw err
         lastError = err
       } else if (err instanceof DOMException && err.name === 'AbortError') {
         lastError = new ProviderError('timeout', 'OpenAI request timed out')

@@ -66,6 +66,29 @@ export function ImportPage() {
   const [mode, setMode] = useState<ImportMode>('merge')
   const [saving, setSaving] = useState(false)
   const [showSource, setShowSource] = useState(false)
+  const [retrying, setRetrying] = useState(false)
+
+  // Extraction step, reusable for the first attempt and for a retry that must
+  // NOT re-upload the file. On failure it preserves documentId + sourceText so
+  // the user can retry the same stored document.
+  const runExtraction = async (documentId: string, sourceText: string) => {
+    setStep({ name: 'processing', detail: 'Extracting structured information…' })
+    try {
+      const [candidate, existing] = await Promise.all([
+        extractProfile(documentId),
+        fetchExistingCounts(userId),
+      ])
+      setSelection(initialSelection(candidate))
+      setStep({ name: 'review', candidate, documentId, sourceText, existing })
+    } catch (err) {
+      setStep({
+        name: 'error',
+        message: err instanceof Error ? err.message : 'Import failed.',
+        documentId,
+        sourceText,
+      })
+    }
+  }
 
   const handleFile = async (file: File | null) => {
     if (!file) return
@@ -82,24 +105,25 @@ export function ImportPage() {
       }
       setStep({ name: 'processing', detail: 'Uploading to private storage…' })
       const doc = await uploadSourceCv(userId, file, text)
-      setStep({ name: 'processing', detail: 'Extracting structured information…' })
-      const [candidate, existing] = await Promise.all([
-        extractProfile(doc.id),
-        fetchExistingCounts(userId),
-      ])
-      setSelection(initialSelection(candidate))
-      setStep({
-        name: 'review',
-        candidate,
-        documentId: doc.id,
-        sourceText: text,
-        existing,
-      })
+      await runExtraction(doc.id, text)
     } catch (err) {
       setStep({
         name: 'error',
         message: err instanceof Error ? err.message : 'Import failed.',
       })
+    }
+  }
+
+  // Retry extraction against the already-uploaded document (no re-upload). The
+  // in-flight guard here plus the switch to the processing view prevents a
+  // duplicate submission; the server also rejects concurrent duplicates.
+  const retryExtraction = async (documentId: string, sourceText: string) => {
+    if (retrying) return
+    setRetrying(true)
+    try {
+      await runExtraction(documentId, sourceText)
+    } finally {
+      setRetrying(false)
     }
   }
 
@@ -205,9 +229,24 @@ export function ImportPage() {
             <p className="text-destructive text-sm" role="alert">
               {step.message}
             </p>
-            <div className="flex justify-center gap-2">
+            <div className="flex flex-wrap justify-center gap-2">
+              {step.documentId && step.sourceText ? (
+                <Button
+                  onClick={() =>
+                    void retryExtraction(step.documentId!, step.sourceText!)
+                  }
+                  disabled={retrying}
+                >
+                  <RotateCcw aria-hidden="true" />{' '}
+                  {retrying ? 'Retrying…' : 'Retry extraction'}
+                </Button>
+              ) : null}
               <Button variant="outline" onClick={() => setStep({ name: 'upload' })}>
-                <RotateCcw aria-hidden="true" /> Try again
+                {step.documentId ? 'Upload a different file' : (
+                  <>
+                    <RotateCcw aria-hidden="true" /> Try again
+                  </>
+                )}
               </Button>
               <Link
                 to="/profile"

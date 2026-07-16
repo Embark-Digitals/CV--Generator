@@ -82,12 +82,14 @@ type AiRunKind =
  * Safe usage logging: hashes, token counts and status only — never raw
  * prompt or response content.
  */
+type AiRunStatus = 'pending' | 'success' | 'error' | 'timeout' | 'rate_limited'
+
 export async function logAiRun(
   ctx: RequestContext,
   entry: {
     kind: AiRunKind
     model: string
-    status: 'success' | 'error' | 'timeout' | 'rate_limited'
+    status: AiRunStatus
     inputHash?: string
     promptTokens?: number
     completionTokens?: number
@@ -111,6 +113,53 @@ export async function logAiRun(
     .select('id')
     .single()
   return data?.id ?? null
+}
+
+/** Move a previously-inserted ai_run to a terminal state. */
+export async function updateAiRun(
+  ctx: RequestContext,
+  id: string,
+  entry: {
+    status: AiRunStatus
+    promptTokens?: number
+    completionTokens?: number
+    durationMs?: number
+    errorCode?: string
+  },
+): Promise<void> {
+  await ctx.db
+    .from('ai_runs')
+    .update({
+      status: entry.status,
+      prompt_tokens: entry.promptTokens ?? null,
+      completion_tokens: entry.completionTokens ?? null,
+      duration_ms: entry.durationMs ?? null,
+      error_code: entry.errorCode ?? null,
+    })
+    .eq('id', id)
+}
+
+/**
+ * True if an equivalent AI run for the same input is already in flight (a
+ * 'pending' row created very recently). Used to reject duplicate submissions
+ * (e.g. an impatient retry click) before spending another provider call.
+ */
+export async function hasPendingRun(
+  ctx: RequestContext,
+  kind: AiRunKind,
+  inputHash: string,
+  withinMs = 120_000,
+): Promise<boolean> {
+  const since = new Date(Date.now() - withinMs).toISOString()
+  const { data } = await ctx.db
+    .from('ai_runs')
+    .select('id')
+    .eq('kind', kind)
+    .eq('input_hash', inputHash)
+    .eq('status', 'pending')
+    .gte('created_at', since)
+    .limit(1)
+  return !!(data && data.length)
 }
 
 /** Wrap a handler with CORS, auth and consistent error responses. */

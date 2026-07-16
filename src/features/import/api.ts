@@ -40,6 +40,46 @@ export async function uploadSourceCv(
   return data
 }
 
+export type ExtractionCategory =
+  | 'timeout'
+  | 'rate_limited'
+  | 'quota'
+  | 'truncated'
+  | 'invalid_response'
+  | 'in_progress'
+  | 'unavailable'
+
+/** Extraction failure carrying a safe, specific category (never provider text). */
+export class ExtractionError extends Error {
+  category: ExtractionCategory
+  constructor(category: ExtractionCategory, message: string) {
+    super(message)
+    this.name = 'ExtractionError'
+    this.category = category
+  }
+}
+
+/** Accurate, safe user-facing copy for each failure category. */
+export function extractionMessage(category: string): string {
+  switch (category) {
+    case 'timeout':
+      return 'AI extraction timed out. Please try again.'
+    case 'rate_limited':
+      return 'The AI service is busy right now. Please wait a moment and try again.'
+    case 'quota':
+      return 'The AI service quota is currently unavailable. Please try again later.'
+    case 'truncated':
+      return 'This document was too long to extract in one pass. Try again, or add records manually.'
+    case 'invalid_response':
+      return 'The AI response could not be validated. Please try again.'
+    case 'in_progress':
+      return 'An extraction for this document is already running. Please wait for it to finish.'
+    case 'unavailable':
+    default:
+      return 'The AI service is temporarily unavailable. Please try again shortly.'
+  }
+}
+
 /** Call the secure extraction Edge Function for a stored document. */
 export async function extractProfile(
   documentId: string,
@@ -48,13 +88,29 @@ export async function extractProfile(
     body: { document_id: documentId },
   })
   if (error) {
-    throw new Error(
-      'AI extraction is unavailable. You can still add records manually, or retry once the AI service is configured.',
+    // The function returns a stable { category } on failure; read it from the
+    // response body without ever surfacing raw provider text.
+    let category = 'unavailable'
+    const ctx = (error as { context?: Response }).context
+    if (ctx && typeof ctx.json === 'function') {
+      try {
+        const body = await ctx.json()
+        if (body?.category) category = String(body.category)
+      } catch {
+        /* keep the safe default */
+      }
+    }
+    throw new ExtractionError(
+      category as ExtractionCategory,
+      extractionMessage(category),
     )
   }
   const parsed = candidateProfileSchema.safeParse(data?.candidate)
   if (!parsed.success) {
-    throw new Error('AI extraction returned an unexpected format. Try again.')
+    throw new ExtractionError(
+      'invalid_response',
+      extractionMessage('invalid_response'),
+    )
   }
   return parsed.data
 }
