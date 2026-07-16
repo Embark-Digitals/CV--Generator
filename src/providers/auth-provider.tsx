@@ -5,8 +5,9 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { Session, User } from '@supabase/supabase-js'
+import type { AuthError, Session, User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
+import { AUTH_CALLBACK_PATH } from '@/features/auth/callback'
 
 interface AuthContextValue {
   session: Session | null
@@ -14,8 +15,8 @@ interface AuthContextValue {
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
-  resetPassword: (email: string) => Promise<{ error: string | null }>
-  updatePassword: (password: string) => Promise<{ error: string | null }>
+  resetPassword: (email: string) => Promise<{ error: AuthError | null }>
+  updatePassword: (password: string) => Promise<{ error: AuthError | null }>
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -51,15 +52,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const resetPassword = async (email: string) => {
+    // Recovery links return here; the callback routes to the set-password page.
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: `${window.location.origin}${AUTH_CALLBACK_PATH}`,
     })
-    return { error: error ? error.message : null }
+    return { error }
   }
 
   const updatePassword = async (password: string) => {
+    // The password is passed straight to Supabase and never logged or stored.
     const { error } = await supabase.auth.updateUser({ password })
-    return { error: error ? error.message : null }
+    return { error }
   }
 
   return (

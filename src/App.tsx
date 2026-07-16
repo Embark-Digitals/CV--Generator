@@ -1,9 +1,10 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { ProtectedRoute } from '@/components/auth/protected-route'
 import { AppLayout } from '@/components/layout/app-layout'
 import { SignInPage } from '@/pages/auth/sign-in'
 import { ForgotPasswordPage } from '@/pages/auth/forgot-password'
-import { ResetPasswordPage } from '@/pages/auth/reset-password'
+import { SetPasswordPage } from '@/pages/auth/set-password'
+import { AuthCallbackPage } from '@/pages/auth/callback'
 import { DashboardPage } from '@/pages/dashboard'
 import { ProfilePage } from '@/pages/profile'
 import { ImportPage } from '@/pages/import'
@@ -12,13 +13,34 @@ import { ApplicationDetailPage } from '@/pages/applications/detail'
 import { TailorPage } from '@/pages/tailor'
 import { SettingsPage } from '@/pages/settings'
 import { NotFoundPage } from '@/pages/not-found'
+import {
+  AUTH_CALLBACK_PATH,
+  markCallbackConsumed,
+  shouldRouteToCallback,
+} from '@/features/auth/callback'
 
 export default function App() {
+  const location = useLocation()
+
+  // An invite link redirects to the Site URL root carrying the auth hash.
+  // Route that (and any stray callback landing) to the dedicated handler once,
+  // so invited/recovering users are never dropped on the normal login screen.
+  if (shouldRouteToCallback(location.pathname)) {
+    markCallbackConsumed()
+    return <Navigate to={AUTH_CALLBACK_PATH} replace />
+  }
+
   return (
     <Routes>
+      <Route path="/auth/callback" element={<AuthCallbackPage />} />
+      <Route path="/set-password" element={<SetPasswordPage />} />
       <Route path="/sign-in" element={<SignInPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      {/* Backward-compatible alias for older recovery redirect URLs. */}
+      <Route
+        path="/reset-password"
+        element={<Navigate to="/set-password" replace />}
+      />
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>

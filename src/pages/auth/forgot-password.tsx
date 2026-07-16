@@ -4,6 +4,11 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useAuth } from '@/providers/auth-provider'
+import {
+  categorizeAuthError,
+  recoveryRequestMessage,
+  safeAuthLog,
+} from '@/features/auth/errors'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -35,9 +40,14 @@ export function ForgotPasswordPage() {
     setServerError(null)
     const { error } = await resetPassword(values.email)
     if (error) {
-      setServerError('Could not send the recovery email. Try again shortly.')
+      const category = categorizeAuthError(error)
+      // Safe log: category/status/code only — never the email address.
+      console.warn('recovery_request_failed', safeAuthLog('forgot-password', error))
+      // Rate limits and delivery failures get distinct, non-revealing copy.
+      setServerError(recoveryRequestMessage(category))
       return
     }
+    // Generic success — never reveals whether the address has an account.
     setSent(true)
   }
 

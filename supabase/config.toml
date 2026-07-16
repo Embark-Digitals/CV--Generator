@@ -155,8 +155,12 @@ site_url = "https://cv-machine.vercel.app"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
 additional_redirect_urls = [
   "https://cv-machine.vercel.app",
+  "https://cv-machine.vercel.app/auth/callback",
+  "https://cv-machine.vercel.app/set-password",
   "https://cv-machine.vercel.app/reset-password",
   "http://localhost:5173",
+  "http://localhost:5173/auth/callback",
+  "http://localhost:5173/set-password",
   "http://localhost:5173/reset-password",
 ]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
