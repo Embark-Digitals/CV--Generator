@@ -3,6 +3,7 @@
 // everything; nothing is authoritative until they say so.
 import { z } from 'npm:zod@3'
 import {
+  enumStatusFor,
   HttpError,
   json,
   logAiRun,
@@ -98,6 +99,9 @@ serveWithContext(async (req, ctx) => {
       user: untrustedBlock('JOB ADVERT', app.advert_text),
       schemaName: 'job_requirements',
       schema: responseJsonSchema,
+      // Structured vacancy requirements + job facts: moderate output, with
+      // headroom for reasoning tokens (gpt-5-mini shares the budget).
+      maxOutputTokens: 8000,
       timeoutMs: 60_000,
     })
     await logAiRun(ctx, {
@@ -115,7 +119,7 @@ serveWithContext(async (req, ctx) => {
     await logAiRun(ctx, {
       kind: 'job_extraction',
       model,
-      status: code === 'error' ? 'error' : code,
+      status: enumStatusFor(code),
       inputHash,
       errorCode: code,
     })

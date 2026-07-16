@@ -3,6 +3,7 @@
 // nothing is written to the Master Career Profile here.
 import { z } from 'npm:zod@3'
 import {
+  enumStatusFor,
   HttpError,
   hasPendingRun,
   json,
@@ -242,9 +243,7 @@ serveWithContext(async (req, ctx) => {
     const code: ProviderErrorCode =
       err instanceof ProviderError ? err.code : 'error'
     // Enum-safe status; the precise category lives in error_code.
-    const enumStatus =
-      code === 'timeout' || code === 'rate_limited' ? code : 'error'
-    await finalise({ status: enumStatus, errorCode: code })
+    await finalise({ status: enumStatusFor(code), errorCode: code })
     return failureResponse(code)
   }
 })

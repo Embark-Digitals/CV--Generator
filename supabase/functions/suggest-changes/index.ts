@@ -4,6 +4,7 @@
 // (transparent) but never surfaced as pending suggestions.
 import { z } from 'npm:zod@3'
 import {
+  enumStatusFor,
   HttpError,
   json,
   logAiRun,
@@ -168,7 +169,9 @@ serveWithContext(async (req, ctx) => {
       schemaName: 'cv_suggestions',
       schema: responseJsonSchema,
       timeoutMs: 120_000,
-      maxOutputTokens: 8192,
+      // Multiple evidence-cited suggestions with rationale; headroom over the
+      // previous 8192 so a full set is never truncated by reasoning overhead.
+      maxOutputTokens: 12_000,
     })
     const parsed = suggestionsSchema.safeParse(result.json)
     if (!parsed.success) {
@@ -185,7 +188,7 @@ serveWithContext(async (req, ctx) => {
     await logAiRun(ctx, {
       kind: 'suggestion',
       model,
-      status: code === 'error' ? 'error' : code,
+      status: enumStatusFor(code),
       inputHash,
       errorCode: code,
     })

@@ -6,6 +6,7 @@
 // injected into the CV.
 import { z } from 'npm:zod@3'
 import {
+  enumStatusFor,
   HttpError,
   json,
   logAiRun,
@@ -160,6 +161,9 @@ serveWithContext(async (req, ctx) => {
       user: userMessage,
       schemaName: 'alignment_assessments',
       schema: responseJsonSchema,
+      // One classification + evidence mapping per requirement can be many
+      // items; give generous headroom on top of reasoning tokens.
+      maxOutputTokens: 12_000,
       timeoutMs: 90_000,
     })
     const parsed = assessmentsSchema.safeParse(result.json)
@@ -177,7 +181,7 @@ serveWithContext(async (req, ctx) => {
     await logAiRun(ctx, {
       kind: 'alignment',
       model,
-      status: code === 'error' ? 'error' : code,
+      status: enumStatusFor(code),
       inputHash,
       errorCode: code,
     })

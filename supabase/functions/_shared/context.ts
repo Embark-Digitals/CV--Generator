@@ -84,6 +84,16 @@ type AiRunKind =
  */
 type AiRunStatus = 'pending' | 'success' | 'error' | 'timeout' | 'rate_limited'
 
+/**
+ * Map an internal provider error code to a valid ai_run_status enum value.
+ * The precise category (e.g. 'truncated', 'quota', 'invalid_response') is
+ * preserved separately in the error_code column — only 'timeout' and
+ * 'rate_limited' have their own enum status; everything else is 'error'.
+ */
+export function enumStatusFor(code: string): AiRunStatus {
+  return code === 'timeout' || code === 'rate_limited' ? code : 'error'
+}
+
 export async function logAiRun(
   ctx: RequestContext,
   entry: {

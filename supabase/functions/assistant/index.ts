@@ -4,6 +4,7 @@
 // and lands as a pending suggestion for review. Chat never edits the CV.
 import { z } from 'npm:zod@3'
 import {
+  enumStatusFor,
   HttpError,
   json,
   logAiRun,
@@ -170,7 +171,9 @@ serveWithContext(async (req, ctx) => {
       schemaName: 'assistant_reply',
       schema: responseJsonSchema,
       timeoutMs: 90_000,
-      maxOutputTokens: 4096,
+      // Bounded conversational reply plus optional suggestions, with headroom
+      // for reasoning tokens above the previous 4096 (which risked truncation).
+      maxOutputTokens: 8000,
     })
     const parsed = responseSchema.safeParse(result.json)
     if (!parsed.success) {
@@ -191,7 +194,7 @@ serveWithContext(async (req, ctx) => {
     await logAiRun(ctx, {
       kind: 'assistant',
       model,
-      status: code === 'error' ? 'error' : code,
+      status: enumStatusFor(code),
       inputHash,
       errorCode: code,
     })
