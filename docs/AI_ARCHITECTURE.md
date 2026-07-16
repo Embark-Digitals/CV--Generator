@@ -24,7 +24,13 @@ Browser (never sees the OpenAI key)
 - Model selection is configuration: `OPENAI_MODEL_EXTRACT` (default
   `gpt-4o-mini`) for extraction/classification, `OPENAI_MODEL_REWRITE`
   (default `gpt-4o`) reserved for final professional rewriting. No model IDs
-  hard-coded at call sites.
+  hard-coded at call sites. **Production is currently configured with
+  `gpt-5-mini` for both roles** (set as Supabase secrets).
+- **Reasoning models** (e.g. the `gpt-5` family) spend output tokens on
+  internal reasoning before the visible reply, and only accept the default
+  `temperature`. The adapter already omits `temperature` and uses generous
+  `max_completion_tokens` (4096–8192), so it is compatible; callers must not
+  set a tiny output cap (it starves the reasoning step).
 - The key lives only as a Supabase secret:
   `supabase secrets set OPENAI_API_KEY --project-ref <ref>`.
 

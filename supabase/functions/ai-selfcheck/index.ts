@@ -37,8 +37,11 @@ serveWithContext(async (req, _ctx) => {
           properties: { ok: { type: 'boolean' } },
           required: ['ok'],
         },
-        maxOutputTokens: 20,
-        timeoutMs: 30_000,
+        // gpt-5-mini is a reasoning model: it spends output tokens on
+        // internal reasoning before the visible reply, so a tiny cap
+        // starves it. Give a realistic budget.
+        maxOutputTokens: 2000,
+        timeoutMs: 60_000,
       })
       result.live = 'ok'
       result.live_valid_json = typeof (r.json as { ok?: unknown })?.ok === 'boolean'
