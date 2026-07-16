@@ -22,11 +22,19 @@ analytics, template marketplace.
 
 ## Infrastructure
 
-- Supabase project `uonqfegzzxjbxqxfpqxe` (org Embark Digitals, eu-west-1):
-  3 migrations (23 tables, 17 enums, triggers), RLS on every table with
-  per-command policies + parent-ownership checks + `is_authorised()`
-  allow-list, 3 private storage buckets with user-scoped paths, 5 deployed
-  Edge Functions, signup disabled.
+- Supabase project **`gqtdolbkgedxfgadnqrt`** (owner's verified account, org
+  `huwhjrlpirgifabvxbuh`, eu-west-1): 3 migrations (23 tables, 17 enums,
+  triggers), RLS on every table with per-command policies + parent-ownership
+  checks + `is_authorised()` allow-list, 3 private storage buckets with
+  user-scoped paths, 6 deployed Edge Functions, signup disabled.
+  - **Provenance correction (2026-07-16):** the original project
+    `uonqfegzzxjbxqxfpqxe` was created via a Supabase CLI credential that
+    belonged to a **different account** (classification C). It was retired;
+    the machine credential was revoked (`supabase logout`), the owner
+    re-authenticated (`supabase login`), and the entire backend was
+    rebuilt on their own account. Migrations, RLS, storage, functions and
+    config are identical (all from Git); 40/40 tests pass against the new
+    backend. The old project is untouched for the owner to delete.
 - Vercel project `cv-machine` → https://cv-machine.vercel.app (verified 200).
   The Vercel project is not Git-connected; deployments are CLI-driven, so
   GitHub pushes never trigger builds.
@@ -55,7 +63,7 @@ analytics, template marketplace.
 ## Outstanding external actions (owner)
 
 1. **OpenAI key** — `supabase secrets set OPENAI_API_KEY --project-ref
-   uonqfegzzxjbxqxfpqxe` (enter the key only in the secure CLI prompt or the
+   gqtdolbkgedxfgadnqrt` (enter the key only in the secure CLI prompt or the
    dashboard; AI features return friendly errors until set).
 2. **Initial user account** — create via the Supabase dashboard
    (auto-confirm) per docs/INITIAL_USER_SETUP.md, then run the first real
