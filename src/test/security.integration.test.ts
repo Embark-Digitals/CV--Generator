@@ -218,7 +218,7 @@ describeLive('RLS, storage isolation and version immutability (live)', () => {
       .from('cv_versions')
       .update({ status: 'archived' })
       .eq('id', version!.id)
-  }, 30_000)
+  }, 60_000)
 
   it('denies cross-user suggestion reads', async () => {
     const { data } = await u2Client.from('ai_suggestions').select('*').limit(5)

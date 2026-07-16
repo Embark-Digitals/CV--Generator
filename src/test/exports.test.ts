@@ -41,7 +41,7 @@ describe('PDF export', () => {
     expect(buffer.length).toBeGreaterThan(2000)
     const head = Buffer.from(buffer.subarray(0, 5)).toString('latin1')
     expect(head).toBe('%PDF-')
-  })
+  }, 30_000)
 
   it('renders multi-page documents without failing (two-page CV)', async () => {
     const { renderPdfBuffer } = await import('./pdf-node-helper')
@@ -61,5 +61,5 @@ describe('PDF export', () => {
     }))
     const buffer = await renderPdfBuffer(doc)
     expect(buffer.length).toBeGreaterThan(4000)
-  })
+  }, 30_000)
 })

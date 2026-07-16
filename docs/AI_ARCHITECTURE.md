@@ -37,6 +37,19 @@ Browser (never sees the OpenAI key)
 | `analyze-alignment` | requirements × verified evidence → per-requirement alignment, score, confirmation questions | extract/classify |
 | `suggest-changes` (Phase 5) | evidence-cited tailoring suggestions, Truth-Lock validated | rewrite |
 | `assistant` (Phase 5) | contextual chat; change proposals become pending suggestions | rewrite |
+| `ai-selfcheck` | auth-protected ops probe: reports `openai_key_present` (boolean) and configured model names; `?live=1` does a tiny round-trip to confirm the key is accepted. Never returns key material. | extract |
+
+### Confirming the OpenAI key is wired
+
+```bash
+# from an authenticated session, POST to the function:
+#   /functions/v1/ai-selfcheck?live=1
+# → {"openai_key_present": true, "model_extract": "...", "live": "ok", ...}
+```
+
+If `openai_key_present` is `false`, the secret is not set **on this project**
+— run `supabase secrets set OPENAI_API_KEY --project-ref <ref>` against the
+correct project reference and re-check.
 
 ## Safety measures
 
